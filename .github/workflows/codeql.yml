@@ -23,8 +23,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - language: javascript-typescript
-          build-mode: none # CodeQL supports 'none', 'autobuild', and 'manual'
+        - language: actions
+          build-mode: none
+        - language: rust
+          build-mode: none
 
     steps:
     - name: Checkout repository
