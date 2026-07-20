@@ -150,6 +150,7 @@ jobs:
     name: Build ${{ matrix.target }}
     needs: [create-release, prepare-bundled-deps]
     runs-on: ${{ matrix.os }}
+    environment: release
     strategy:
       fail-fast: false
       matrix:
@@ -230,6 +231,25 @@ jobs:
       - name: Build GUI release binary
         if: matrix.archive != 'deb'
         run: cargo build --release --target ${{ matrix.target }} -p nameback-gui
+
+      - name: Azure login (OIDC)
+        if: runner.os == 'Windows'
+        uses: azure/login@93381592711f247e165c389ebb30b596c84cdc48 # v3.0.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Sign Windows .exe (Azure Trusted Signing)
+        if: runner.os == 'Windows'
+        uses: azure/trusted-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba # v2.0.0
+        with:
+          endpoint: https://neu.codesigning.azure.net
+          trusted-signing-account-name: securityronin
+          certificate-profile-name: securityronin-public
+          files-folder: target/${{ matrix.target }}/release
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
 
       - name: Strip binaries (macOS only)
         if: matrix.archive == 'dmg'
@@ -565,6 +585,18 @@ jobs:
         shell: pwsh
         run: |
           wix build -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -o nameback-${{ matrix.target }}.msi installer/nameback.wxs
+
+      - name: Sign Windows .msi (Azure Trusted Signing)
+        if: runner.os == 'Windows'
+        uses: azure/trusted-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba # v2.0.0
+        with:
+          endpoint: https://neu.codesigning.azure.net
+          trusted-signing-account-name: securityronin
+          certificate-profile-name: securityronin-public
+          files-folder: ${{ github.workspace }}
+          files-folder-filter: msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
 
       - name: Generate MSI checksum (Windows only)
         if: matrix.os == 'windows-latest'
